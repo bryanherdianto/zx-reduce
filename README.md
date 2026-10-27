@@ -4,11 +4,11 @@
 
 ## Key Highlights
 
-- **Extreme Execution Speed:** Implemented in pure C++20 with cache-efficient adjacency representations and bit-packed $\mathbb{F}_2$ linear algebra; consistently **10x to 100x+ faster than PyZX**.
-- **Formal Correctness Guaranteed:** Every optimization is formally verified. Unit tests use an exact tensor contraction oracle (`TensorOracle`), and end-to-end circuit optimizations are validated against the companion [`qdd-sim`](../qdd-sim/) decision diagram equivalence checker ($C_1^\dagger C_2 = e^{i\theta} I$).
+- **Extreme Execution Speed:** Implemented in pure C++20 with cache-efficient adjacency representations and bit-packed F₂ linear algebra; consistently **10x to 100x+ faster than PyZX**.
+- **Formal Correctness Guaranteed:** Every optimization is formally verified. Unit tests use an exact tensor contraction oracle (`TensorOracle`), and end-to-end circuit optimizations are validated against the companion [`qdd-sim`](../qdd-sim/) decision diagram equivalence checker (`C₁† · C₂ = e^(iθ) · I`).
 - **Complete OpenQASM 2.0 Support:** Robust lexer and recursive descent parser supporting custom gates, nested gates, angle expressions, gate unrolling (Toffoli into 15-gate Clifford+T, `swap`, `cz`, `cx`, single-qubit rotations, `cp`/`cphase`), and arbitrary wire allocations.
-- **Full ZX Rewrite Pipeline:** Spider fusion, identity removal, local complementation on $\pm \pi/2$ interior spiders, pivoting on $\{0, \pi\}$ Pauli spider pairs, and phase gadget synthesis and fusion.
-- **Sound Frontier Circuit Extraction:** Backward frontier extraction algorithm with $\mathbb{F}_2$ Gaussian elimination for greedy CNOT synthesis, degree-1 Hadamard frontier advancement, and exact permutation cycle decomposition.
+- **Full ZX Rewrite Pipeline:** Spider fusion, identity removal, local complementation on ±π/2 interior spiders, pivoting on {0, π} Pauli spider pairs, and phase gadget synthesis and fusion.
+- **Sound Frontier Circuit Extraction:** Backward frontier extraction algorithm with F₂ Gaussian elimination for greedy CNOT synthesis, degree-1 Hadamard frontier advancement, and exact permutation cycle decomposition.
 - **Zero Heavyweight Dependencies:** Uses only the C++20 standard library and lightweight single-header utilities (`doctest`). No Python runtime, Boost, or heavyweight BLAS required.
 
 ## Architectural Pipeline
@@ -23,44 +23,59 @@ Any ZX diagram can be transformed into an equivalent **graph-like diagram** wher
 
 1. Every spider is a **Z-spider** (green).
 2. Spiders are connected only by **Hadamard edges** (blue dashed edges).
-3. No two interior spiders share parallel Hadamard edges (Hopf law: pairs of $H$-edges between the same spiders cancel mod 2).
+3. No two interior spiders share parallel Hadamard edges (Hopf law: pairs of H-edges between the same spiders cancel mod 2).
 4. No spider has self-loops (self-loops evaluate to global phase scalars).
 
 ### 2. Exact Phase Algebra
 
-Spiders carry phases $\alpha = \frac{k}{d} \pi \in [0, 2\pi)$ with $k \in \mathbb{Z}$, $d \in \mathbb{Z}^+$, normalized by $\gcd(k, d)$. Clifford spiders correspond to $d \in \{1, 2\}$, while $T$-like spiders have $d = 4$.
+Spiders carry phases `α = (k/d)π ∈ [0, 2π)` with `k ∈ ℤ`, `d ∈ ℤ⁺`, normalized by `gcd(k, d)`. Clifford spiders correspond to `d ∈ {1, 2}`, while T-like spiders have `d = 4`.
 
-Global diagram scalars are tracked exactly in the polar form:
-$$\text{Scalar} = \lambda \cdot \left(\frac{1}{\sqrt{2}}\right)^p \cdot e^{i \alpha \pi / 4}$$
-where $\lambda \in \{0, 1\}$, $p \in \mathbb{Z}$, and $\alpha \in \mathbb{Z}_8$.
+Global diagram scalars are tracked exactly in polar form:
+
+```text
+Scalar = λ · (1 / √2)^p · e^(i · α · π / 4)
+```
+
+where `λ ∈ {0, 1}`, `p ∈ ℤ`, and `α ∈ ℤ₈` (an octant index from 0 to 7).
 
 ### 3. Rewrite Rules
 
-- **Local Complementation ($LC$):**
-  For an interior spider $u$ with phase $\pm \pi/2$, $u$ is eliminated. The subgraph induced by its neighbors $N(u)$ is complemented in the Hadamard adjacency graph:
-  $$\forall v, w \in N(u), v \neq w: \quad \text{edge}(v, w) \leftarrow \neg \text{edge}(v, w)$$
-  Each neighbor $v \in N(u)$ receives a phase update: $\alpha_v \leftarrow \alpha_v \mp \frac{\pi}{2}$.
-- **Pivoting ($PIV$):**
-  For a pair of connected interior spiders $u, v$ with phases in $\{0, \pi\}$, the pair is eliminated. The neighborhood is partitioned into $A = N(u) \setminus (N(v) \cup \{v\})$, $B = N(v) \setminus (N(u) \cup \{u\})$, and $C = N(u) \cap N(v)$. The bipartite connections between $A, B$, $B, C$, and $A, C$ are toggled, and neighbor phases are updated soundly.
+- **Local Complementation (LC):**
+  For an interior spider `u` with phase `±π/2`, `u` is eliminated. The subgraph induced by its neighbors `N(u)` is complemented in the Hadamard adjacency graph:
+
+  ```text
+  ∀ v, w ∈ N(u), v ≠ w:  edge(v, w) ← ¬edge(v, w)
+  ```
+
+  Each neighbor `v ∈ N(u)` receives a phase update: `α_v ← α_v ∓ π/2`.
+
+- **Pivoting (PIV):**
+  For a pair of connected interior spiders `u, v` with phases in `{0, π}`, the pair is eliminated. The neighborhood is partitioned into disjoint sets:
+  - `A = N(u) \ (N(v) ∪ {v})`
+  - `B = N(v) \ (N(u) ∪ {u})`
+  - `C = N(u) ∩ N(v)`
+
+  The bipartite connections between `(A, B)`, `(B, C)`, and `(A, C)` are toggled, and neighbor phases are updated soundly.
+
 - **Phase Gadget Identification & Fusion:**
-  Spiders with non-Clifford phases connected to a single hub spider (forming an axel-leaf phase gadget) are identified. Parallel gadgets acting on the same target set are fused together, directly reducing non-Clifford $T$-gate counts.
+  Spiders with non-Clifford phases connected to a single hub spider (forming an axel-leaf phase gadget) are identified. Parallel gadgets acting on the same target set are fused together, directly reducing non-Clifford T-gate counts.
 
 ### 4. Sound Frontier Extraction
 
 Extraction translates a simplified graph-like diagram back into a sequence of unitary quantum gates:
 
-1. Maintains a frontier of spiders $F = \{f_1, \dots, f_n\}$ connected to output boundaries.
-2. Extracts local $Z(\alpha)$ rotations and single-qubit Clifford operations.
-3. Forms the biadjacency matrix $M \in \mathbb{F}_2^{|F| \times |candidates|}$ between the frontier and interior neighbors.
-4. Performs Gaussian elimination over $\mathbb{F}_2$ using row operations, emitting CNOT gates on the circuit.
+1. Maintains a frontier of spiders `F = {f₁, ..., f_n}` connected to output boundaries.
+2. Extracts local `Z(α)` rotations and single-qubit Clifford operations.
+3. Forms the biadjacency matrix `M ∈ F₂^(|F| × |candidates|)` between the frontier and interior neighbors.
+4. Performs Gaussian elimination over `F₂` using row operations, emitting CNOT gates on the circuit.
 5. Advances frontier spiders having degree 1 into interior vertices by extracting Hadamard gates.
-6. Synthesizes remaining wire permutations via exact cycle decomposition into swap gates.
+6. Synthesizes remaining wire permutations via exact cycle decomposition into SWAP gates.
 
 ## Empirical Benchmarks: zx-reduce vs qsyn vs PyZX
 
 Benchmarking was conducted across 9 standard quantum benchmark circuits comparing three distinct ZX-calculus engines:
 
-1. **zx-reduce**: Our lightweight, high-performance C++20 engine utilizing contiguous slot-vector graph representations and bit-packed $\mathbb{F}_2$ Gaussian elimination.
+1. **zx-reduce**: Our lightweight, high-performance C++20 engine utilizing contiguous slot-vector graph representations and bit-packed F₂ Gaussian elimination.
 2. **qsyn**: The NTU DVLab C++ quantum synthesis and ZX-calculus optimization framework.
 3. **PyZX**: The standard reference Python ZX-calculus library.
 
