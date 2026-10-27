@@ -1,11 +1,11 @@
 # ZX Reduce
 
-`zx-reduce` is an industrial-grade, high-performance quantum circuit optimization engine written in modern **C++20**. It leverages the graphical rewrite language of the **ZX-calculus** to simplify quantum circuits beyond the reach of standard gate-level commutativity passes, achieving up to **107x speedups over PyZX** while guaranteeing **100% formal equivalence** via dual-tier tensor network and Quantum Decision Diagram (QDD) verification.
+`zx-reduce` is a quantum circuit optimization engine written in modern **C++20**. It leverages the graphical rewrite language of the **ZX-calculus** to simplify quantum circuits beyond the reach of standard gate-level commutativity passes, achieving up to **107x speedups over PyZX** while guaranteeing **100% formal equivalence** via dual-tier tensor network and Quantum Decision Diagram (QDD) verification.
 
 ## Key Highlights
 
 - **Extreme Execution Speed:** Implemented in pure C++20 with cache-efficient adjacency representations and bit-packed F₂ linear algebra; consistently **10x to 100x+ faster than PyZX**.
-- **Formal Correctness Guaranteed:** Every optimization is formally verified. Unit tests use an exact tensor contraction oracle (`TensorOracle`), and end-to-end circuit optimizations are validated against the companion [`qdd-sim`](../qdd-sim/) decision diagram equivalence checker (`C₁† · C₂ = e^(iθ) · I`).
+- **Formal Correctness Guaranteed:** Every optimization is formally verified. Unit tests use an exact tensor contraction oracle (`TensorOracle`), and end-to-end circuit optimizations are validated against the companion [`qdd-sim`](https://github.com/bryanherdianto/qdd-sim) decision diagram equivalence checker (`C₁† · C₂ = e^(iθ) · I`).
 - **Complete OpenQASM 2.0 Support:** Robust lexer and recursive descent parser supporting custom gates, nested gates, angle expressions, gate unrolling (Toffoli into 15-gate Clifford+T, `swap`, `cz`, `cx`, single-qubit rotations, `cp`/`cphase`), and arbitrary wire allocations.
 - **Full ZX Rewrite Pipeline:** Spider fusion, identity removal, local complementation on ±π/2 interior spiders, pivoting on {0, π} Pauli spider pairs, and phase gadget synthesis and fusion.
 - **Sound Frontier Circuit Extraction:** Backward frontier extraction algorithm with F₂ Gaussian elimination for greedy CNOT synthesis, degree-1 Hadamard frontier advancement, and exact permutation cycle decomposition.
@@ -75,7 +75,7 @@ Extraction translates a simplified graph-like diagram back into a sequence of un
 
 Benchmarking was conducted across 9 standard quantum benchmark circuits comparing three distinct ZX-calculus engines:
 
-1. **zx-reduce**: Our lightweight, high-performance C++20 engine utilizing contiguous slot-vector graph representations and bit-packed F₂ Gaussian elimination.
+1. **zx-reduce**: The lightweight C++20 engine utilizing contiguous slot-vector graph representations and bit-packed F₂ Gaussian elimination.
 2. **qsyn**: The NTU DVLab C++ quantum synthesis and ZX-calculus optimization framework.
 3. **PyZX**: The standard reference Python ZX-calculus library.
 
